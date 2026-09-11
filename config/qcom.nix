@@ -15,6 +15,46 @@
   # Physical brightness response still needs verification after reboot.
   hardware.deviceTree.overlays = [
     {
+      # This unit's Windows inventory identifies LXST2021 (HID vendor 29BD).
+      # Use the upstream Latitude 7455 LXST2021 wiring/address on the shared
+      # Thena board, instead of the Inspiron's nonresponding address 0x10.
+      # Verified on this unit: 29BD:1103 binds at 0x09 and touch works.
+      name = "dell7441-lxst2021-touchscreen";
+      filter = "x1e80100-dell-inspiron-14-plus-7441.dtb";
+      dtsText = ''
+        /dts-v1/;
+        /plugin/;
+
+        / {
+            compatible = "dell,inspiron-14-plus-7441";
+
+            fragment@0 {
+                target-path = "/soc@0/geniqup@ac0000/i2c@a80000/touchscreen@10";
+                __overlay__ {
+                    status = "disabled";
+                };
+            };
+
+            fragment@1 {
+                target = <&i2c8>;
+                __overlay__ {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+                    touchscreen@9 {
+                        compatible = "hid-over-i2c";
+                        reg = <0x09>;
+                        hid-descr-addr = <0x01>;
+                        interrupts-extended = <&tlmm 51 8>;
+                        pinctrl-0 = <&ts0_default>;
+                        pinctrl-names = "default";
+                        status = "okay";
+                    };
+                };
+            };
+        };
+      '';
+    }
+    {
       name = "dell7441-auo-pwm-backlight";
       filter = "x1e80100-dell-inspiron-14-plus-7441.dtb";
       dtsText = ''
