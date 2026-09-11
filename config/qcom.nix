@@ -9,6 +9,67 @@
   hardware.deviceTree.enable = true;
   hardware.deviceTree.name = "qcom/x1e80100-dell-inspiron-14-plus-7441.dtb";
 
+  # AUO B140QAX01.H advertises PWM brightness, not AUX brightness control.
+  # Firmware already routes PMK8550 GPIO5 to func3; describe its PWM provider
+  # and panel connection so NixOS builds the corrected DTB for every generation.
+  # Physical brightness response still needs verification after reboot.
+  hardware.deviceTree.overlays = [
+    {
+      name = "dell7441-auo-pwm-backlight";
+      filter = "x1e80100-dell-inspiron-14-plus-7441.dtb";
+      dtsText = ''
+        // Experimental: PMK8550 channel 0 -> GPIO5 func3, already selected by firmware.
+        // Physical brightness response on the AUO panel still needs validation.
+        /dts-v1/;
+        /plugin/;
+
+        / {
+            compatible = "dell,inspiron-14-plus-7441";
+
+            fragment@0 {
+                target = <&pmk8550_pwm>;
+                __overlay__ {
+                    status = "okay";
+                    pinctrl-names = "default";
+                    pinctrl-0 = <&dell_pwm_output>;
+                };
+            };
+
+            fragment@1 {
+                target = <&pmk8550_gpios>;
+                __overlay__ {
+                    dell_pwm_output: dell-backlight-pwm-state {
+                        pins = "gpio5";
+                        function = "func3";
+                    };
+                };
+            };
+
+            fragment@2 {
+                target-path = "/";
+                __overlay__ {
+                    dell_pwm_backlight: backlight {
+                        compatible = "pwm-backlight";
+                        pwms = <&pmk8550_pwm 0 4266537>;
+                        power-supply = <&vreg_edp_3p3>;
+                        brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
+                        num-interpolated-steps = <10>;
+                        default-brightness-level = <80>;
+                    };
+                };
+            };
+
+            fragment@3 {
+                target-path = "/soc@0/display-subsystem@ae00000/displayport-controller@aea0000/aux-bus/panel";
+                __overlay__ {
+                    backlight = <&dell_pwm_backlight>;
+                };
+            };
+        };
+      '';
+    }
+  ];
+
   # No TPM driver on this platform; without this, boot waits ~1.5min on TPM.
   systemd.tpm2.enable = false;
   boot.initrd.systemd.tpm2.enable = false;
@@ -33,6 +94,9 @@
     "gpucc-x1e80100"
     "phy_qcom_edp"
     "panel_edp"
+    # The panel now depends on the PMK8550 PWM backlight during early boot.
+    "leds-qcom-lpg"
+    "pwm_bl"
     "msm"
     "nvme"
     "phy_qcom_qmp_pcie"
