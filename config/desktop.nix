@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 {
   # --- Desktop: GNOME (Wayland, Adreno msm driver) ---
@@ -20,6 +20,14 @@
   programs.singularity-desktop = {
     enable = true;
     core-apps.enable = false;
+  };
+
+  # --- Vicre ---
+  programs.vicre = {
+    enable = true;
+    user = "jafed";
+    package = inputs.vicre.packages.aarch64-linux.vicre;
+    model = "gemini-3.8-flash-high";
   };
 
   # --- Audio ---

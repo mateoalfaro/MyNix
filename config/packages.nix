@@ -18,4 +18,5 @@
     clang
     clang-tools
   ];
+  services.cpak.enable = true;
 }
